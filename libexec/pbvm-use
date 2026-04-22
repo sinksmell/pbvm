@@ -1,7 +1,11 @@
 #!/usr/bin/env bash
-# usage: pbvm use <version>
-# Set the globally active protoc version by writing $PBVM_ROOT/version.
-# Future invocations of `protoc` via the shim will route to this version.
+# usage: pbvm use [--global|--local] <version>
+# Set the active protoc version.
+#   --global (default)  write $PBVM_ROOT/version (applies system-wide)
+#   --local             write ./.protoc-version (applies to this directory and its
+#                       descendants; takes precedence over the global version)
+# To set just the current shell, export PBVM_VERSION=<version> instead; that
+# overrides both --local and --global.
 
 set -euo pipefail
 
@@ -11,24 +15,56 @@ set -euo pipefail
 # shellcheck source=../lib/log.sh
 source "$PBVM_LIB_DIR/log.sh"
 
-if [[ $# -ne 1 ]]; then
-  log_error "usage: pbvm use <version>"
-  exit 1
-fi
+scope="global"
+version=""
 
-version="${1#v}"
+for arg in "$@"; do
+  case "$arg" in
+    --global) scope="global" ;;
+    --local)  scope="local" ;;
+    --shell)
+      log_error "--shell is not a flag; export PBVM_VERSION=<version> instead"
+      exit 1
+      ;;
+    -h|--help)
+      echo "usage: pbvm use [--global|--local] <version>"
+      exit 0
+      ;;
+    -*)
+      log_die "unknown flag: $arg"
+      ;;
+    *)
+      if [[ -n "$version" ]]; then
+        log_die "too many arguments"
+      fi
+      version="${arg#v}"
+      ;;
+  esac
+done
+
+[[ -n "$version" ]] || log_die "usage: pbvm use [--global|--local] <version>"
+
 version_dir="$PBVM_ROOT/versions/protoc-$version"
-
 if [[ ! -x "$version_dir/bin/protoc" ]]; then
   log_error "protoc $version is not installed"
   log_info "run 'pbvm install $version' first"
   exit 1
 fi
 
-# Atomic write.
-tmp="$(mktemp "$PBVM_ROOT/.version.XXXXXX")"
-printf '%s\n' "$version" > "$tmp"
-mv -f "$tmp" "$PBVM_ROOT/version"
-
-log_ok "now using protoc $version"
-log_step "$version_dir/bin/protoc"
+case "$scope" in
+  global)
+    tmp="$(mktemp "$PBVM_ROOT/.version.XXXXXX")"
+    printf '%s\n' "$version" > "$tmp"
+    mv -f "$tmp" "$PBVM_ROOT/version"
+    log_ok "now using protoc $version (global)"
+    log_step "$version_dir/bin/protoc"
+    ;;
+  local)
+    target="$PWD/.protoc-version"
+    tmp="$(mktemp "$PWD/.protoc-version.XXXXXX")"
+    printf '%s\n' "$version" > "$tmp"
+    mv -f "$tmp" "$target"
+    log_ok "now using protoc $version (local: $target)"
+    log_step "$version_dir/bin/protoc"
+    ;;
+esac

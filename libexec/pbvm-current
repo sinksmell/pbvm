@@ -1,22 +1,44 @@
 #!/usr/bin/env bash
 # usage: pbvm current
-# Print the active protoc version and the path to its binary.
-# Exits with status 1 if no version is active.
+# Print the resolved protoc version, its source, and the path to its binary.
+# Sources, in precedence order:
+#   shell           (PBVM_VERSION env set)
+#   local:<file>    (nearest .protoc-version walking up from $PWD)
+#   global          ($PBVM_ROOT/version)
+# Exits with status 1 if no version can be resolved.
 
 set -euo pipefail
 
 : "${PBVM_ROOT:?PBVM_ROOT not set — run via bin/pbvm}"
+: "${PBVM_LIB_DIR:?PBVM_LIB_DIR not set — run via bin/pbvm}"
 
-if [[ ! -s "$PBVM_ROOT/version" ]]; then
-  echo "no active version" >&2
-  echo "run 'pbvm use <version>'" >&2
+# shellcheck source=../lib/resolve.sh
+source "$PBVM_LIB_DIR/resolve.sh"
+
+if ! resolved="$(pbvm_resolve)"; then
+  cat >&2 <<'EOF'
+pbvm: no protoc version set
+   set globally:         pbvm use <version>
+   set for this project: pbvm use --local <version>
+   set for this shell:   export PBVM_VERSION=<version>
+EOF
   exit 1
 fi
 
-version="$(cat "$PBVM_ROOT/version")"
+version="${resolved%%$'\n'*}"
+source="${resolved#*$'\n'}"
+source="${source%$'\n'}"
+
 target="$PBVM_ROOT/versions/protoc-$version/bin/protoc"
 
-printf '%s\n' "$version"
+# Format: "<version> (set by <source>)"
+case "$source" in
+  shell)        printf '%s (set by PBVM_VERSION)\n' "$version" ;;
+  local:*)      printf '%s (set by %s)\n' "$version" "${source#local:}" ;;
+  global)       printf '%s (global)\n' "$version" ;;
+esac
 printf '%s\n' "$target"
 
-[[ -x "$target" ]]  # exit 1 if the active version went missing
+# Exit 1 if the resolved version isn't actually installed — so callers can
+# tell the difference between "nothing set" and "set but not installed".
+[[ -x "$target" ]]
