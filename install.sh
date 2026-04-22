@@ -2,19 +2,19 @@
 # pbvm installer — downloads pbvm into ~/.pbvm and wires up shell integration.
 #
 # Usage:
-#   curl -fsSL https://raw.githubusercontent.com/<owner>/pbvm/main/install.sh | bash
+#   curl -fsSL https://raw.githubusercontent.com/sinksmell/pbvm/master/install.sh | bash
 #
 # Environment:
 #   PBVM_INSTALL_DIR   Install target (default: ~/.pbvm)
-#   PBVM_REPO          Override source repo (default: <owner>/pbvm)
-#   PBVM_REF           Git branch/tag to install (default: main)
+#   PBVM_REPO          Override source repo (default: sinksmell/pbvm)
+#   PBVM_REF           Git branch/tag to install (default: master)
 #   PBVM_SKIP_RC       If set, don't modify shell rc files
 
 set -euo pipefail
 
 PBVM_INSTALL_DIR="${PBVM_INSTALL_DIR:-$HOME/.pbvm}"
 PBVM_REPO="${PBVM_REPO:-sinksmell/pbvm}"
-PBVM_REF="${PBVM_REF:-main}"
+PBVM_REF="${PBVM_REF:-master}"
 
 _c_bold=$'\033[1m'; _c_green=$'\033[32m'; _c_yellow=$'\033[33m'
 _c_red=$'\033[31m'; _c_dim=$'\033[2m'; _c_reset=$'\033[0m'

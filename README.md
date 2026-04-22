@@ -12,7 +12,7 @@ GVM-style version manager for [`protoc`](https://github.com/protocolbuffers/prot
 ### curl | bash (recommended)
 
 ```sh
-curl -fsSL https://raw.githubusercontent.com/sinksmell/pbvm/main/install.sh | bash
+curl -fsSL https://raw.githubusercontent.com/sinksmell/pbvm/master/install.sh | bash
 ```
 
 The installer clones pbvm into `~/.pbvm` and appends the following to your shell rc file (`~/.zshrc` or `~/.bashrc`):
