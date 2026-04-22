@@ -1,0 +1,39 @@
+#!/usr/bin/env bash
+# usage: pbvm exec <version> [--] <command> [<args>...]
+# Run <command> with the given protoc version activated for just that invocation.
+# Works by prepending that version's bin dir to PATH, so any `protoc` call
+# inside <command> (scripts, make rules, etc.) routes to <version> without
+# changing the globally active version.
+
+set -euo pipefail
+
+: "${PBVM_ROOT:?PBVM_ROOT not set — run via bin/pbvm}"
+: "${PBVM_LIB_DIR:?PBVM_LIB_DIR not set — run via bin/pbvm}"
+
+# shellcheck source=../lib/log.sh
+source "$PBVM_LIB_DIR/log.sh"
+
+if [[ $# -lt 2 ]]; then
+  log_error "usage: pbvm exec <version> [--] <command> [<args>...]"
+  exit 1
+fi
+
+version="${1#v}"; shift
+# Allow an optional '--' separator.
+if [[ "${1:-}" == "--" ]]; then
+  shift
+fi
+
+if [[ $# -lt 1 ]]; then
+  log_error "usage: pbvm exec <version> [--] <command> [<args>...]"
+  exit 1
+fi
+
+bin_dir="$PBVM_ROOT/versions/protoc-$version/bin"
+if [[ ! -x "$bin_dir/protoc" ]]; then
+  log_error "protoc $version is not installed"
+  log_info "run 'pbvm install $version' first"
+  exit 1
+fi
+
+PATH="$bin_dir:$PATH" exec "$@"

@@ -1,0 +1,73 @@
+#!/usr/bin/env bash
+# usage: pbvm install <version>
+# Download and install the given protoc version into $PBVM_ROOT/versions/protoc-<version>/.
+# Accepts "25.1" or "v25.1"; both resolve to release tag v25.1.
+
+set -euo pipefail
+
+: "${PBVM_ROOT:?PBVM_ROOT not set — run via bin/pbvm}"
+: "${PBVM_LIB_DIR:?PBVM_LIB_DIR not set — run via bin/pbvm}"
+
+# shellcheck source=../lib/log.sh
+source "$PBVM_LIB_DIR/log.sh"
+# shellcheck source=../lib/platform.sh
+source "$PBVM_LIB_DIR/platform.sh"
+# shellcheck source=../lib/download.sh
+source "$PBVM_LIB_DIR/download.sh"
+# shellcheck source=../lib/archive.sh
+source "$PBVM_LIB_DIR/archive.sh"
+
+if [[ $# -ne 1 ]]; then
+  log_error "usage: pbvm install <version>"
+  exit 1
+fi
+
+raw_version="$1"
+version="${raw_version#v}"
+
+if [[ ! "$version" =~ ^[0-9]+\.[0-9]+(\.[0-9]+)?([a-zA-Z0-9.-]*)?$ ]]; then
+  log_die "invalid version: '$raw_version' (expected e.g. 25.1 or v25.1)"
+fi
+
+version_dir="$PBVM_ROOT/versions/protoc-$version"
+if [[ -x "$version_dir/bin/protoc" ]]; then
+  log_warn "protoc $version is already installed at $version_dir"
+  log_info "run 'pbvm use $version' to activate it"
+  exit 0
+fi
+
+asset="$(pbvm_platform_asset "$version")"
+url="https://github.com/protocolbuffers/protobuf/releases/download/v${version}/${asset}"
+archive_path="$PBVM_ROOT/archives/$asset"
+
+log_info "installing protoc $version ($(pbvm_platform_triplet))"
+
+if ! pbvm_download "$url" "$archive_path"; then
+  log_error "failed to download $url"
+  log_info "hint: run 'pbvm listall' to see available versions"
+  exit 1
+fi
+
+# Extract into a staging dir first, then atomically move into place so a
+# failed extract doesn't leave a half-populated version_dir.
+staging="$(mktemp -d "$PBVM_ROOT/versions/.staging.XXXXXX")"
+trap 'rm -rf "$staging"' EXIT
+
+pbvm_archive_extract "$archive_path" "$staging"
+
+if [[ ! -x "$staging/bin/protoc" ]]; then
+  log_die "archive missing bin/protoc (corrupt or unexpected layout)"
+fi
+
+# Clobber any partial version_dir left by a prior failed run.
+rm -rf "$version_dir"
+mv "$staging" "$version_dir"
+trap - EXIT
+
+log_ok "installed protoc $version"
+log_step "$version_dir/bin/protoc"
+
+# Friendly nudge if nothing is active yet.
+if [[ ! -s "$PBVM_ROOT/version" ]]; then
+  log_info "run 'pbvm use $version' to activate it"
+fi

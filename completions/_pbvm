@@ -1,0 +1,50 @@
+#compdef pbvm
+# pbvm zsh completion
+# Install: place this file in a directory on $fpath (e.g.
+# /usr/local/share/zsh/site-functions/_pbvm) and restart zsh.
+
+_pbvm() {
+  local -a commands
+  commands=(
+    'install:Download and install a protoc version'
+    'uninstall:Remove an installed protoc version'
+    'list:List installed versions'
+    'listall:List versions available on GitHub Releases'
+    'use:Set the active protoc version'
+    'current:Show the active version and its path'
+    'which:Print the absolute path to active protoc'
+    'exec:Run a command with a specific protoc version'
+    'version:Print pbvm version'
+    'help:Show help'
+  )
+
+  _arguments -C \
+    '1:command:->command' \
+    '*::arg:->args'
+
+  case $state in
+    command)
+      _describe 'command' commands
+      ;;
+    args)
+      case $line[1] in
+        use|uninstall|exec)
+          local root="${PBVM_ROOT:-$HOME/.pbvm}"
+          local -a versions
+          if [[ -d "$root/versions" ]]; then
+            versions=( ${root}/versions/protoc-*(N:t:s/protoc-//) )
+          fi
+          _describe 'version' versions
+          ;;
+        listall)
+          _arguments '--refresh[force re-fetch from GitHub]'
+          ;;
+        help)
+          _describe 'command' commands
+          ;;
+      esac
+      ;;
+  esac
+}
+
+_pbvm "$@"

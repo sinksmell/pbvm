@@ -1,0 +1,50 @@
+#!/usr/bin/env bash
+# usage: pbvm help [<command>]
+# Show top-level help, or the usage comment for a specific subcommand.
+
+set -euo pipefail
+
+: "${PBVM_LIBEXEC_DIR:?PBVM_LIBEXEC_DIR not set — run via bin/pbvm}"
+
+if [[ $# -eq 0 ]]; then
+  cat <<'EOF'
+pbvm — Protocol Buffers Version Manager
+
+Usage: pbvm <command> [<args>]
+
+Commands:
+  install <version>       Download and install a protoc version
+  uninstall <version>     Remove an installed protoc version
+  list                    List installed versions (active marked with =>)
+  listall [--refresh]     List all versions available on GitHub Releases
+  use <version>           Set the active protoc version (global)
+  current                 Show the active protoc version and its path
+  which                   Print the absolute path to the active protoc binary
+  exec <version> -- <cmd> Run <cmd> with <version> as the active protoc
+  version                 Print pbvm's own version
+  help [<command>]        Show help (for a specific command, if given)
+
+Environment:
+  PBVM_ROOT    Data directory (default: ~/.pbvm)
+  NO_COLOR     Disable colored output when set
+
+See https://github.com/<owner>/pbvm for documentation.
+EOF
+  exit 0
+fi
+
+cmd="$1"
+target="$PBVM_LIBEXEC_DIR/pbvm-$cmd"
+if [[ ! -f "$target" ]]; then
+  echo "pbvm: unknown command: $cmd" >&2
+  exit 1
+fi
+
+# Print every leading '# usage:' / '#' comment block until the first blank/non-comment line,
+# stripping the leading "# ".
+awk '
+  NR == 1 { next }                     # skip shebang
+  /^#!/  { next }
+  /^# ?/ { sub(/^# ?/, ""); print; next }
+  { exit }
+' "$target"

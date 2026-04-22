@@ -1,0 +1,34 @@
+#!/usr/bin/env bash
+# usage: pbvm use <version>
+# Set the globally active protoc version by writing $PBVM_ROOT/version.
+# Future invocations of `protoc` via the shim will route to this version.
+
+set -euo pipefail
+
+: "${PBVM_ROOT:?PBVM_ROOT not set — run via bin/pbvm}"
+: "${PBVM_LIB_DIR:?PBVM_LIB_DIR not set — run via bin/pbvm}"
+
+# shellcheck source=../lib/log.sh
+source "$PBVM_LIB_DIR/log.sh"
+
+if [[ $# -ne 1 ]]; then
+  log_error "usage: pbvm use <version>"
+  exit 1
+fi
+
+version="${1#v}"
+version_dir="$PBVM_ROOT/versions/protoc-$version"
+
+if [[ ! -x "$version_dir/bin/protoc" ]]; then
+  log_error "protoc $version is not installed"
+  log_info "run 'pbvm install $version' first"
+  exit 1
+fi
+
+# Atomic write.
+tmp="$(mktemp "$PBVM_ROOT/.version.XXXXXX")"
+printf '%s\n' "$version" > "$tmp"
+mv -f "$tmp" "$PBVM_ROOT/version"
+
+log_ok "now using protoc $version"
+log_step "$version_dir/bin/protoc"

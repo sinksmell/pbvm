@@ -1,0 +1,33 @@
+name: release
+
+on:
+  push:
+    tags:
+      - 'v*'
+
+jobs:
+  release:
+    runs-on: ubuntu-22.04
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Build tarball
+        run: |
+          tag="${GITHUB_REF_NAME}"
+          version="${tag#v}"
+          pkg="pbvm-${version}"
+          mkdir -p "dist/$pkg"
+          cp -R bin libexec lib shims completions install.sh VERSION LICENSE README.md CHANGELOG.md \
+            "dist/$pkg/"
+          tar -czf "dist/$pkg.tar.gz" -C dist "$pkg"
+          (cd dist && shasum -a 256 "$pkg.tar.gz" > "$pkg.tar.gz.sha256")
+
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          files: |
+            dist/*.tar.gz
+            dist/*.sha256
+          generate_release_notes: true

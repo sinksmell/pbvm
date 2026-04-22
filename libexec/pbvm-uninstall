@@ -1,0 +1,62 @@
+#!/usr/bin/env bash
+# usage: pbvm uninstall <version> [--purge]
+# Remove an installed protoc version. Refuses to remove the active version;
+# switch to a different version first (pbvm use <other>). With --purge, also
+# deletes the cached archive from $PBVM_ROOT/archives/.
+
+set -euo pipefail
+
+: "${PBVM_ROOT:?PBVM_ROOT not set — run via bin/pbvm}"
+: "${PBVM_LIB_DIR:?PBVM_LIB_DIR not set — run via bin/pbvm}"
+
+# shellcheck source=../lib/log.sh
+source "$PBVM_LIB_DIR/log.sh"
+
+purge=0
+version=""
+for arg in "$@"; do
+  case "$arg" in
+    --purge) purge=1 ;;
+    -h|--help)
+      echo "usage: pbvm uninstall <version> [--purge]"
+      exit 0
+      ;;
+    -*) log_die "unknown flag: $arg" ;;
+    *)
+      if [[ -n "$version" ]]; then
+        log_die "too many arguments"
+      fi
+      version="${arg#v}"
+      ;;
+  esac
+done
+
+[[ -n "$version" ]] || log_die "usage: pbvm uninstall <version> [--purge]"
+
+version_dir="$PBVM_ROOT/versions/protoc-$version"
+if [[ ! -d "$version_dir" ]]; then
+  log_die "protoc $version is not installed"
+fi
+
+active=""
+[[ -s "$PBVM_ROOT/version" ]] && active="$(cat "$PBVM_ROOT/version")"
+if [[ "$version" == "$active" ]]; then
+  log_error "refusing to uninstall the active version ($version)"
+  log_info "switch first:  pbvm use <other>"
+  exit 1
+fi
+
+rm -rf "$version_dir"
+log_ok "uninstalled protoc $version"
+
+if [[ $purge -eq 1 ]]; then
+  shopt -s nullglob
+  purged=0
+  for archive in "$PBVM_ROOT"/archives/protoc-"$version"-*.zip; do
+    rm -f "$archive"
+    log_step "purged $(basename "$archive")"
+    purged=1
+  done
+  shopt -u nullglob
+  [[ $purged -eq 0 ]] && log_step "no cached archive to purge"
+fi

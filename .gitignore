@@ -1,0 +1,16 @@
+# These paths are pbvm's data dirs; don't commit what lands in them.
+archives/
+versions/
+cache/
+# the active-version file (single line, e.g. "25.1"); NOT the VERSION code file
+/version
+!VERSION
+
+# Editor / OS cruft
+.DS_Store
+*.swp
+*.swo
+
+# Local dev scratch
+.test-root/
+/tmp-*

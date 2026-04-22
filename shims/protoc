@@ -1,0 +1,21 @@
+#!/usr/bin/env bash
+# pbvm shim for protoc — routes to the active version's real binary.
+# Place $PBVM_ROOT/shims on PATH; calls to `protoc` will land here.
+
+set -e
+PBVM_ROOT="${PBVM_ROOT:-$HOME/.pbvm}"
+
+if [[ ! -s "$PBVM_ROOT/version" ]]; then
+  echo "pbvm: no active protoc version. Run 'pbvm use <version>'." >&2
+  exit 127
+fi
+
+version="$(cat "$PBVM_ROOT/version")"
+target="$PBVM_ROOT/versions/protoc-$version/bin/protoc"
+
+if [[ ! -x "$target" ]]; then
+  echo "pbvm: protoc $version is not installed. Run 'pbvm install $version'." >&2
+  exit 127
+fi
+
+exec "$target" "$@"

@@ -1,0 +1,13 @@
+#!/usr/bin/env bash
+# usage: pbvm version
+# Print pbvm's own version.
+
+set -euo pipefail
+
+: "${PBVM_PREFIX:?PBVM_PREFIX not set — run via bin/pbvm}"
+
+if [[ -f "$PBVM_PREFIX/VERSION" ]]; then
+  cat "$PBVM_PREFIX/VERSION"
+else
+  echo "unknown"
+fi

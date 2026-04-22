@@ -1,0 +1,22 @@
+#!/usr/bin/env bash
+# usage: pbvm current
+# Print the active protoc version and the path to its binary.
+# Exits with status 1 if no version is active.
+
+set -euo pipefail
+
+: "${PBVM_ROOT:?PBVM_ROOT not set — run via bin/pbvm}"
+
+if [[ ! -s "$PBVM_ROOT/version" ]]; then
+  echo "no active version" >&2
+  echo "run 'pbvm use <version>'" >&2
+  exit 1
+fi
+
+version="$(cat "$PBVM_ROOT/version")"
+target="$PBVM_ROOT/versions/protoc-$version/bin/protoc"
+
+printf '%s\n' "$version"
+printf '%s\n' "$target"
+
+[[ -x "$target" ]]  # exit 1 if the active version went missing

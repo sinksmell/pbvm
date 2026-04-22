@@ -1,0 +1,26 @@
+#!/usr/bin/env bash
+# usage: pbvm listall [--refresh]
+# List protoc versions available on GitHub Releases, newest first.
+# Results cached for 1 hour; --refresh forces a fresh fetch.
+# Set PBVM_INCLUDE_PRERELEASE=1 to include rc/beta releases.
+# Set GITHUB_TOKEN to raise the GitHub API rate limit.
+
+set -euo pipefail
+
+: "${PBVM_ROOT:?PBVM_ROOT not set — run via bin/pbvm}"
+: "${PBVM_LIB_DIR:?PBVM_LIB_DIR not set — run via bin/pbvm}"
+
+# shellcheck source=../lib/log.sh
+source "$PBVM_LIB_DIR/log.sh"
+# shellcheck source=../lib/github.sh
+source "$PBVM_LIB_DIR/github.sh"
+
+refresh_flag=""
+case "${1:-}" in
+  "") ;;
+  --refresh) refresh_flag="--refresh" ;;
+  *) log_die "usage: pbvm listall [--refresh]" ;;
+esac
+
+pbvm_github_tags $refresh_flag | sed 's/^v//' | sort -rV 2>/dev/null || \
+  pbvm_github_tags $refresh_flag | sed 's/^v//'

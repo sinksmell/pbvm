@@ -1,0 +1,60 @@
+name: ci
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+jobs:
+  test:
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-22.04, macos-14]
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install bats (Linux)
+        if: runner.os == 'Linux'
+        run: sudo apt-get update && sudo apt-get install -y bats jq unzip
+
+      - name: Install bats (macOS)
+        if: runner.os == 'macOS'
+        run: brew install bats-core jq
+
+      - name: Lint shell scripts
+        if: runner.os == 'Linux'
+        run: |
+          sudo apt-get install -y shellcheck
+          shellcheck --exclude=SC1091 -x bin/pbvm install.sh shims/protoc lib/*.sh libexec/pbvm-*
+
+      - name: Run bats suite
+        run: bats tests/
+
+      - name: Integration — install, use, switch
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          PBVM_ROOT: ${{ github.workspace }}/.pbvm-ci
+        run: |
+          ./bin/pbvm install 25.1
+          ./bin/pbvm install 24.4
+          ./bin/pbvm use 25.1
+          ./shims/protoc --version | grep -q 25.1
+          ./bin/pbvm use 24.4
+          ./shims/protoc --version | grep -q 24.4
+          ./bin/pbvm exec 25.1 -- ./shims/protoc --version | grep -q 24.4 && { echo "exec leaked!"; exit 1; } || true
+
+      - name: Integration — well-known types auto-resolve
+        env:
+          PBVM_ROOT: ${{ github.workspace }}/.pbvm-ci
+        run: |
+          cat > /tmp/pbvm_wkt.proto <<'EOF'
+          syntax = "proto3";
+          import "google/protobuf/timestamp.proto";
+          message M { google.protobuf.Timestamp t = 1; }
+          EOF
+          ./bin/pbvm use 25.1
+          ./shims/protoc -I/tmp --descriptor_set_out=/tmp/pbvm_wkt.pb /tmp/pbvm_wkt.proto
+          test -s /tmp/pbvm_wkt.pb

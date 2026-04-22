@@ -1,0 +1,45 @@
+#!/usr/bin/env bash
+# usage: pbvm list
+# List installed protoc versions. The active version is marked with "=>".
+
+set -euo pipefail
+
+: "${PBVM_ROOT:?PBVM_ROOT not set — run via bin/pbvm}"
+: "${PBVM_LIB_DIR:?PBVM_LIB_DIR not set — run via bin/pbvm}"
+
+# shellcheck source=../lib/log.sh
+source "$PBVM_LIB_DIR/log.sh"
+
+versions_dir="$PBVM_ROOT/versions"
+
+# Collect installed versions (directory names matching protoc-*).
+shopt -s nullglob
+installed=()
+for d in "$versions_dir"/protoc-*; do
+  [[ -d "$d" ]] || continue
+  installed+=("$(basename "$d" | sed 's/^protoc-//')")
+done
+shopt -u nullglob
+
+if [[ ${#installed[@]} -eq 0 ]]; then
+  echo "no versions installed"
+  echo "run 'pbvm install <version>' — see 'pbvm listall' for available versions"
+  exit 0
+fi
+
+active=""
+if [[ -s "$PBVM_ROOT/version" ]]; then
+  active="$(cat "$PBVM_ROOT/version")"
+fi
+
+# Sort by version descending. `sort -V` handles semver sensibly on both macOS
+# and Linux (BSD sort on recent macOS supports -V; fall back to -r if not).
+sorted="$(printf '%s\n' "${installed[@]}" | sort -rV 2>/dev/null || printf '%s\n' "${installed[@]}" | sort -r)"
+
+while IFS= read -r v; do
+  if [[ "$v" == "$active" ]]; then
+    printf '=> %s\n' "$v"
+  else
+    printf '   %s\n' "$v"
+  fi
+done <<<"$sorted"
