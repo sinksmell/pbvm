@@ -1,20 +1,23 @@
 #!/usr/bin/env bash
 # usage: pbvm which
-# Print the absolute path to the active protoc binary (useful for Makefiles:
-# PROTOC := $(shell pbvm which) ).
+# Print the absolute path to the active protoc binary resolved via the same
+# priority the shim uses: PBVM_VERSION env > walked-up .protoc-version > global.
+# Useful for Makefiles:   PROTOC := $(shell pbvm which)
 
 set -euo pipefail
 
 : "${PBVM_ROOT:?PBVM_ROOT not set — run via bin/pbvm}"
+: "${PBVM_LIB_DIR:?PBVM_LIB_DIR not set — run via bin/pbvm}"
 
-if [[ ! -s "$PBVM_ROOT/version" ]]; then
+# shellcheck source=../lib/resolve.sh
+source "$PBVM_LIB_DIR/resolve.sh"
+
+if ! version="$(pbvm_resolve_version)"; then
   echo "pbvm: no active protoc version. Run 'pbvm use <version>'." >&2
   exit 1
 fi
 
-version="$(cat "$PBVM_ROOT/version")"
 target="$PBVM_ROOT/versions/protoc-$version/bin/protoc"
-
 if [[ ! -x "$target" ]]; then
   echo "pbvm: protoc $version is not installed. Run 'pbvm install $version'." >&2
   exit 1

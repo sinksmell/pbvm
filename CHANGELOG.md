@@ -4,6 +4,17 @@ All notable changes to this project are documented here. Format: [Keep a Changel
 
 ## [Unreleased]
 
+### Added
+- Per-project version selection via `.protoc-version` file (walks up from `$PWD`).
+- `pbvm use --local <version>` writes `./.protoc-version`; `pbvm use --global <version>` (the default) writes `$PBVM_ROOT/version`.
+- `PBVM_VERSION` environment variable for shell-level overrides (highest priority).
+- `pbvm current` now reports the source of the resolved version (`shell` / `local:<file>` / `global`).
+- `lib/resolve.sh` centralizes version resolution for `pbvm current`, `pbvm which`, and internal callers.
+
+### Changed
+- `pbvm use <version>` without flags continues to set the global version (backward compatible).
+- The shim resolves the active version via the 3-tier priority on every invocation; no re-sourcing required to pick up a new `.protoc-version`.
+
 ## [0.1.0] - 2026-04-21
 
 ### Added

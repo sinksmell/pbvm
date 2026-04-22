@@ -1,18 +1,55 @@
 #!/usr/bin/env bash
-# pbvm shim for protoc — routes to the active version's real binary.
-# Place $PBVM_ROOT/shims on PATH; calls to `protoc` will land here.
+# pbvm shim for protoc — routes to the resolved version's real binary.
+#
+# Version resolution priority (highest first):
+#   1. $PBVM_VERSION environment variable
+#   2. .protoc-version file, walking up from $PWD
+#   3. $PBVM_ROOT/version (global)
+#
+# The logic below is intentionally self-contained (no `source`) for per-call
+# latency. The authoritative reference is lib/resolve.sh — keep the two in
+# sync when changing resolution semantics.
 
 set -e
 PBVM_ROOT="${PBVM_ROOT:-$HOME/.pbvm}"
 
-if [[ ! -s "$PBVM_ROOT/version" ]]; then
-  echo "pbvm: no active protoc version. Run 'pbvm use <version>'." >&2
+version=""
+
+if [[ -n "${PBVM_VERSION:-}" ]]; then
+  version="$PBVM_VERSION"
+else
+  dir="$PWD"
+  while [[ -n "$dir" ]]; do
+    if [[ -f "$dir/.protoc-version" ]]; then
+      IFS= read -r line < "$dir/.protoc-version" 2>/dev/null || line=""
+      line="${line#"${line%%[![:space:]]*}"}"
+      line="${line%"${line##*[![:space:]]}"}"
+      if [[ -n "$line" ]]; then
+        version="$line"
+        break
+      fi
+    fi
+    [[ "$dir" == "/" ]] && break
+    dir="${dir%/*}"
+    [[ -z "$dir" ]] && dir="/"
+  done
+
+  if [[ -z "$version" && -s "$PBVM_ROOT/version" ]]; then
+    IFS= read -r version < "$PBVM_ROOT/version" 2>/dev/null || version=""
+  fi
+fi
+
+if [[ -z "$version" ]]; then
+  cat >&2 <<'EOF'
+pbvm: no active protoc version.
+   set globally:        pbvm use <version>
+   set for this project: pbvm use --local <version>
+   set for this shell:  export PBVM_VERSION=<version>
+EOF
   exit 127
 fi
 
-version="$(cat "$PBVM_ROOT/version")"
 target="$PBVM_ROOT/versions/protoc-$version/bin/protoc"
-
 if [[ ! -x "$target" ]]; then
   echo "pbvm: protoc $version is not installed. Run 'pbvm install $version'." >&2
   exit 127

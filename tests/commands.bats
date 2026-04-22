@@ -57,14 +57,14 @@ EOS
 
   run "$PBVM" current
   [ "$status" -eq 0 ]
-  [[ "${lines[0]}" = "25.1" ]]
+  [[ "${lines[0]}" == "25.1"* ]]
   [[ "${lines[1]}" == *"protoc-25.1/bin/protoc"* ]]
 }
 
 @test "current: fails when no active version" {
   run "$PBVM" current
   [ "$status" -eq 1 ]
-  [[ "$output" == *"no active version"* ]]
+  [[ "$output" == *"no protoc version set"* ]]
 }
 
 @test "which: prints absolute path" {
