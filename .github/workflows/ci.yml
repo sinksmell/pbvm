@@ -18,7 +18,12 @@ jobs:
 
       - name: Install bats (Linux)
         if: runner.os == 'Linux'
-        run: sudo apt-get update && sudo apt-get install -y bats jq unzip
+        run: |
+          sudo apt-get update && sudo apt-get install -y jq unzip shellcheck
+          # apt ships bats 1.2.0 which lacks bats_require_minimum_version and
+          # does not reliably set BATS_TEST_TMPDIR; install from source instead.
+          git clone --depth 1 --branch v1.11.0 https://github.com/bats-core/bats-core.git /tmp/bats-core
+          sudo /tmp/bats-core/install.sh /usr/local
 
       - name: Install bats (macOS)
         if: runner.os == 'macOS'
@@ -26,9 +31,7 @@ jobs:
 
       - name: Lint shell scripts
         if: runner.os == 'Linux'
-        run: |
-          sudo apt-get install -y shellcheck
-          shellcheck --exclude=SC1091 -x bin/pbvm install.sh shims/protoc lib/*.sh libexec/pbvm-*
+        run: shellcheck --exclude=SC1091 -x bin/pbvm install.sh shims/protoc lib/*.sh libexec/pbvm-*
 
       - name: Run bats suite
         run: bats tests/
@@ -38,13 +41,22 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           PBVM_ROOT: ${{ github.workspace }}/.pbvm-ci
         run: |
+          # Add shims to PATH so bare `protoc` invocations go through the shim.
+          export PATH="$PBVM_ROOT/shims:$PATH"
+
           ./bin/pbvm install 25.1
           ./bin/pbvm install 24.4
+
           ./bin/pbvm use 25.1
-          ./shims/protoc --version | grep -q 25.1
+          protoc --version | grep -q 25.1
+
           ./bin/pbvm use 24.4
-          ./shims/protoc --version | grep -q 24.4
-          ./bin/pbvm exec 25.1 -- ./shims/protoc --version | grep -q 24.4 && { echo "exec leaked!"; exit 1; } || true
+          protoc --version | grep -q 24.4
+
+          # exec must use the requested version (25.1), not the global active (24.4).
+          ./bin/pbvm exec 25.1 -- protoc --version | grep -q 25.1
+          # After exec the global active version must still be 24.4.
+          protoc --version | grep -q 24.4
 
       - name: Integration — well-known types auto-resolve
         env:
